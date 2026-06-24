@@ -46,6 +46,24 @@ async function readRequestBody(req) {
   return Buffer.concat(chunks);
 }
 
+function normaliseAnalyzerError(error) {
+  if (error && typeof error === "object") {
+    const maybe = error;
+    const nestedError = maybe.error instanceof Error ? maybe.error.message : String(maybe.error || "");
+    return {
+      error: nestedError || "Analyzer failed.",
+      stdout: typeof maybe.stdout === "string" ? maybe.stdout : "",
+      stderr: typeof maybe.stderr === "string" ? maybe.stderr : "",
+    };
+  }
+
+  return {
+    error: error instanceof Error ? error.message : String(error),
+    stdout: "",
+    stderr: "",
+  };
+}
+
 function runAnalyzer({ wavPath, label, note }) {
   return new Promise((resolve, reject) => {
     const args = ["run", "analyze.py", wavPath, "--label", label];
@@ -54,9 +72,11 @@ function runAnalyzer({ wavPath, label, note }) {
       args.push("--note", note);
     }
 
+    console.log(`Analyzing ${wavPath} as “${label}”...`);
+
     const child = spawn("uv", args, {
       cwd: repoRoot,
-      shell: true,
+      shell: false,
       windowsHide: true,
     });
 
@@ -83,6 +103,13 @@ function runAnalyzer({ wavPath, label, note }) {
           stderr,
         });
         return;
+      }
+
+      if (stdout.trim()) {
+        console.log(stdout.trim());
+      }
+      if (stderr.trim()) {
+        console.error(stderr.trim());
       }
 
       resolve({ stdout, stderr });
@@ -135,9 +162,15 @@ const server = http.createServer(async (req, res) => {
       res.end("Not found");
     });
   } catch (error) {
-    sendJson(res, 500, {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    const payload = normaliseAnalyzerError(error);
+    console.error("Analyze request failed:", payload.error);
+    if (payload.stderr.trim()) {
+      console.error(payload.stderr.trim());
+    }
+    if (payload.stdout.trim()) {
+      console.log(payload.stdout.trim());
+    }
+    sendJson(res, 500, payload);
   }
 });
 
