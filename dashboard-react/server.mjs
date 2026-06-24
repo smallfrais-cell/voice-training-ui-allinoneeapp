@@ -78,6 +78,11 @@ function runAnalyzer({ wavPath, label, note }) {
       cwd: repoRoot,
       shell: false,
       windowsHide: true,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+        PYTHONUTF8: "1",
+      },
     });
 
     let stdout = "";
