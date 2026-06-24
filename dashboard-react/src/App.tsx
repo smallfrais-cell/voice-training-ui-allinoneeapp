@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Recording, ReferenceVoice } from "./types";
 import {
   PITCH_ZONES,
@@ -19,6 +19,7 @@ import { LineChart, type Point, type ChartBand } from "./components/LineChart";
 import { RecordingCard } from "./components/RecordingCard";
 import { CheatSheet } from "./components/CheatSheet";
 import { RegisterSection } from "./components/RegisterSection";
+import { PracticeRecorder } from "./components/PracticeRecorder";
 import {
   AnnotationsProvider,
   Note,
@@ -45,17 +46,21 @@ export function App() {
     null,
   );
 
-  useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}recordings.json?t=${Date.now()}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: Recording[]) =>
-        setRecordings([...data].sort((a, b) => a.id - b.id)),
-      )
-      .catch((e) => setError(String(e)));
+  const loadRecordings = useCallback(async () => {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}recordings.json?t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as Recording[];
+      setRecordings([...data].sort((a, b) => a.id - b.id));
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    }
   }, []);
+
+  useEffect(() => {
+    void loadRecordings();
+  }, [loadRecordings]);
 
   // reference voices (real men/women) — degrade gracefully if missing.
   useEffect(() => {
@@ -68,6 +73,11 @@ export function App() {
   }, []);
 
   const openModal = (key: MetricKey, rect: DOMRect) => setModal({ key, rect });
+
+  async function handleAnalyzed() {
+    setSelectedId(null);
+    await loadRecordings();
+  }
 
   const R = recordings ?? [];
   const latest = R.length ? R[R.length - 1] : null;
@@ -102,6 +112,8 @@ export function App() {
           {error}
         </div>
       )}
+
+      <PracticeRecorder onAnalyzed={handleAnalyzed} />
 
       {/* recording switcher */}
       {R.length > 1 && (
