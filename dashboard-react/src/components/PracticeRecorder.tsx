@@ -15,6 +15,12 @@ interface PracticeRecorderProps {
 
 type RecorderState = "idle" | "recording" | "analyzing";
 
+interface AnalyzeErrorPayload {
+  error?: string;
+  stdout?: string;
+  stderr?: string;
+}
+
 export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   const [scripts, setScripts] = useState<PracticeScript[]>(() => loadScripts());
   const [selectedScriptId, setSelectedScriptId] = useState<string | null>(() => {
@@ -163,9 +169,9 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
         body: take.blob,
       });
 
-      const payload = await response.json().catch(() => ({}));
+      const payload = (await response.json().catch(() => ({}))) as AnalyzeErrorPayload;
       if (!response.ok) {
-        throw new Error(payload.error || `Analyzer failed with HTTP ${response.status}`);
+        throw new Error(formatAnalyzeError(payload, response.status));
       }
 
       setStatus("Analysis saved. Refreshing dashboard data...");
@@ -364,6 +370,20 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
       </div>
     </section>
   );
+}
+
+function formatAnalyzeError(payload: AnalyzeErrorPayload, status: number): string {
+  const parts = [payload.error || `Analyzer failed with HTTP ${status}`];
+  const details = [payload.stderr, payload.stdout]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => value.trim())
+    .join("\n\n");
+
+  if (details) {
+    parts.push(details.slice(0, 1200));
+  }
+
+  return parts.join("\n\n");
 }
 
 function delay(ms: number): Promise<void> {
