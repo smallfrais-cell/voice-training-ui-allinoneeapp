@@ -7,6 +7,7 @@ import {
   updateScript,
   type PracticeScript,
 } from "../lib/scriptsStore";
+import "./PracticeRecorder.css";
 
 interface PracticeRecorderProps {
   onAnalyzed: () => Promise<void> | void;
@@ -309,7 +310,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
               <input
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                placeholder="felt easy / strained / sleepy goblin-free data"
+                placeholder="felt easy / strained / sleepy data"
                 disabled={recorderState === "analyzing"}
               />
             </label>
