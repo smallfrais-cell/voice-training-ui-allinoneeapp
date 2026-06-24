@@ -3,7 +3,6 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createReadStream } from "node:fs";
-import { createServer as createViteServer } from "vite";
 
 const maxBytes = 100 * 1024 * 1024;
 
@@ -26,7 +25,6 @@ const contentTypes = new Map([
 
 export async function startVoiceGardenServer(options) {
   const {
-    dashboardRoot,
     repoRoot,
     staticRoot = null,
     incomingDir,
@@ -35,12 +33,7 @@ export async function startVoiceGardenServer(options) {
     dev = false,
   } = options;
 
-  const vite = dev
-    ? await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      })
-    : null;
+  const vite = dev ? await createViteMiddlewareServer() : null;
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -95,6 +88,14 @@ export async function startVoiceGardenServer(options) {
       });
     },
   };
+}
+
+async function createViteMiddlewareServer() {
+  const { createServer } = await import("vite");
+  return createServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  });
 }
 
 async function handleAnalyzeRequest(req, res, { repoRoot, incomingDir, url }) {
