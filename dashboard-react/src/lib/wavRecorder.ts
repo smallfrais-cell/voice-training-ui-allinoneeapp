@@ -4,6 +4,8 @@ export interface WavRecording {
   sampleRate: number;
 }
 
+export type AudioFrameHandler = (samples: Float32Array, sampleRate: number) => void;
+
 declare global {
   interface Window {
     webkitAudioContext?: typeof AudioContext;
@@ -18,6 +20,11 @@ export class WavRecorder {
   private chunks: Float32Array[] = [];
   private startedAt = 0;
   private stopped = false;
+  private onAudioFrame?: AudioFrameHandler;
+
+  constructor(onAudioFrame?: AudioFrameHandler) {
+    this.onAudioFrame = onAudioFrame;
+  }
 
   async start(): Promise<void> {
     if (this.context) {
@@ -45,10 +52,12 @@ export class WavRecorder {
     this.stopped = false;
 
     this.processor.onaudioprocess = (event) => {
-      if (this.stopped) return;
+      if (this.stopped || !this.context) return;
 
       const input = event.inputBuffer.getChannelData(0);
-      this.chunks.push(new Float32Array(input));
+      const frame = new Float32Array(input);
+      this.chunks.push(frame);
+      this.onAudioFrame?.(frame, this.context.sampleRate);
 
       const output = event.outputBuffer.getChannelData(0);
       output.fill(0);
