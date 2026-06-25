@@ -185,7 +185,7 @@
 }
 
 .reading-script {
-  min-height: 250px;
+  min-height: 210px;
   resize: vertical;
 }
 
@@ -193,6 +193,127 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 10px;
+}
+
+.live-pitch {
+  background: rgba(255, 250, 253, 0.78);
+  border: 1.5px solid var(--lav-soft);
+  border-radius: 18px;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.live-pitch.active {
+  border-color: var(--pink);
+  box-shadow: 0 8px 18px rgba(176, 106, 150, 0.13);
+}
+
+.live-pitch-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.live-pitch-head h3 {
+  color: #8a6aa8;
+  font-size: 14px;
+  margin: 0 0 2px;
+}
+
+.live-pitch-head p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin: 0;
+}
+
+.live-pitch-readout {
+  align-items: flex-end;
+  background: var(--lav-bg);
+  border-radius: 14px;
+  color: #7a5a92;
+  display: grid;
+  min-width: 84px;
+  padding: 7px 10px;
+  text-align: right;
+}
+
+.live-pitch-readout b {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.live-pitch-readout span {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.78;
+}
+
+.live-pitch-readout.ok {
+  background: #e7f8ef;
+  color: #2f7a58;
+}
+
+.live-pitch-readout.low {
+  background: #ffe1e8;
+  color: #b04472;
+}
+
+.live-pitch-readout.quiet {
+  color: var(--ink-soft);
+}
+
+.live-pitch-graph {
+  background: linear-gradient(180deg, #fffafd, #f8f1ff);
+  border-radius: 14px;
+  display: block;
+  height: 74px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.pitch-grid {
+  stroke: rgba(138, 106, 168, 0.16);
+  stroke-width: 0.6;
+}
+
+.pitch-floor-line {
+  stroke: rgba(176, 68, 114, 0.7);
+  stroke-dasharray: 3 2;
+  stroke-width: 1.2;
+}
+
+.pitch-line {
+  fill: none;
+  stroke: #9b7ad0;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.live-pitch-footer {
+  align-items: center;
+  color: var(--ink-soft);
+  display: flex;
+  font-size: 11px;
+  justify-content: space-between;
+  margin-top: 7px;
+}
+
+.live-pitch-footer label {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.live-pitch-footer input {
+  border-radius: 10px;
+  font-size: 12px;
+  padding: 5px 7px;
+  width: 66px;
 }
 
 .recorder-controls {
@@ -295,7 +416,8 @@
 
 @media (max-width: 820px) {
   .practice-head,
-  .recorder-controls {
+  .recorder-controls,
+  .live-pitch-head {
     align-items: stretch;
     flex-direction: column;
   }
