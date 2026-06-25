@@ -12,9 +12,10 @@
     "desktop": "electron electron/main.mjs",
     "electron:dev": "concurrently -k -n server,electron \"npm run app\" \"wait-on http://127.0.0.1:5173 && electron electron/main.mjs\"",
     "build": "tsc -b && vite build",
+    "build:analyzer:win": "cd .. && uv run --with pyinstaller pyinstaller --clean --onefile --name voice-garden-analyzer --hidden-import parselmouth.praat analyze.py",
     "preview": "vite preview",
-    "pack:win": "npm run build && electron-builder --win --x64 --dir",
-    "dist:win": "npm run build && electron-builder --win nsis --x64"
+    "pack:win": "npm run build && npm run build:analyzer:win && electron-builder --win --x64 --dir",
+    "dist:win": "npm run build && npm run build:analyzer:win && electron-builder --win nsis --x64"
   },
   "build": {
     "appId": "com.smallfrais.voicegarden",
@@ -46,6 +47,14 @@
         "to": "workspace/recordings.json"
       },
       {
+        "from": "../dist/voice-garden-analyzer.exe",
+        "to": "workspace/bin/voice-garden-analyzer.exe"
+      },
+      {
+        "from": "node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe",
+        "to": "workspace/bin/ffmpeg.exe"
+      },
+      {
         "from": "public",
         "to": "workspace/dashboard-react/public"
       }
@@ -64,6 +73,7 @@
     }
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@wavesurfer/react": "^1.0.12",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
