@@ -70,12 +70,14 @@ async function startPackagedServer() {
   const workspaceRoot = await prepareWorkspace();
   const staticRoot = path.join(app.getAppPath(), "dist");
   const incomingDir = path.join(workspaceRoot, "dashboard-react", "public", "incoming-recordings");
+  const scriptsFile = path.join(workspaceRoot, "scripts.json");
 
   localServer = await startVoiceGardenServer({
     dashboardRoot: path.dirname(staticRoot),
     repoRoot: workspaceRoot,
     staticRoot,
     incomingDir,
+    scriptsFile,
     port: 0,
     dev: false,
   });
