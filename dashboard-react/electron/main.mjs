@@ -90,6 +90,7 @@ async function prepareWorkspace() {
   await fs.mkdir(workspaceRoot, { recursive: true });
 
   await copyIfMissing(path.join(resourceWorkspace, "analyze.py"), path.join(workspaceRoot, "analyze.py"));
+  await copyIfMissing(path.join(resourceWorkspace, "analyze_safe.py"), path.join(workspaceRoot, "analyze_safe.py"));
   await copyIfMissing(path.join(resourceWorkspace, "pyproject.toml"), path.join(workspaceRoot, "pyproject.toml"));
   await copyIfMissing(path.join(resourceWorkspace, "uv.lock"), path.join(workspaceRoot, "uv.lock"));
   await copyIfMissing(path.join(resourceWorkspace, "recordings.json"), path.join(workspaceRoot, "recordings.json"));
