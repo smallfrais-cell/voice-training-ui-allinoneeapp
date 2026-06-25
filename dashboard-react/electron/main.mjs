@@ -72,7 +72,6 @@ async function startPackagedServer() {
   const incomingDir = path.join(workspaceRoot, "dashboard-react", "public", "incoming-recordings");
 
   localServer = await startVoiceGardenServer({
-    dashboardRoot: path.dirname(staticRoot),
     repoRoot: workspaceRoot,
     staticRoot,
     incomingDir,
@@ -93,6 +92,7 @@ async function prepareWorkspace() {
   await copyIfMissing(path.join(resourceWorkspace, "pyproject.toml"), path.join(workspaceRoot, "pyproject.toml"));
   await copyIfMissing(path.join(resourceWorkspace, "uv.lock"), path.join(workspaceRoot, "uv.lock"));
   await copyIfMissing(path.join(resourceWorkspace, "recordings.json"), path.join(workspaceRoot, "recordings.json"));
+  await copyIfMissing(path.join(resourceWorkspace, "bin"), path.join(workspaceRoot, "bin"));
   await copyIfMissing(
     path.join(resourceWorkspace, "dashboard-react", "public"),
     path.join(workspaceRoot, "dashboard-react", "public"),
