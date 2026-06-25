@@ -5,6 +5,7 @@ import path from "node:path";
 import { createReadStream } from "node:fs";
 
 const maxBytes = 100 * 1024 * 1024;
+const maxScriptsBytes = 1024 * 1024;
 
 const contentTypes = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -28,6 +29,7 @@ export async function startVoiceGardenServer(options) {
     repoRoot,
     staticRoot = null,
     incomingDir,
+    scriptsFile = path.join(repoRoot, "scripts.local.json"),
     port = 5173,
     host = "127.0.0.1",
     dev = false,
@@ -38,6 +40,11 @@ export async function startVoiceGardenServer(options) {
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+
+      if (url.pathname === "/api/scripts") {
+        await handleScriptsRequest(req, res, { scriptsFile });
+        return;
+      }
 
       if (req.method === "POST" && url.pathname === "/api/analyze") {
         await handleAnalyzeRequest(req, res, { repoRoot, incomingDir, url });
@@ -55,7 +62,7 @@ export async function startVoiceGardenServer(options) {
       await serveStaticRequest(req, res, { repoRoot, staticRoot });
     } catch (error) {
       const payload = normaliseAnalyzerError(error);
-      console.error("Analyze request failed:", payload.error);
+      console.error("Request failed:", payload.error);
       if (payload.stderr.trim()) {
         console.error(payload.stderr.trim());
       }
@@ -96,6 +103,58 @@ async function createViteMiddlewareServer() {
     server: { middlewareMode: true },
     appType: "spa",
   });
+}
+
+async function handleScriptsRequest(req, res, { scriptsFile }) {
+  if (req.method === "GET") {
+    sendJson(res, 200, await loadScriptsFile(scriptsFile));
+    return;
+  }
+
+  if (req.method === "PUT") {
+    const body = await readRequestBody(req, maxScriptsBytes);
+    const parsed = body.length ? JSON.parse(body.toString("utf-8")) : [];
+    const scripts = normaliseScripts(parsed);
+    await fs.mkdir(path.dirname(scriptsFile), { recursive: true });
+    await fs.writeFile(scriptsFile, JSON.stringify(scripts, null, 2));
+    sendJson(res, 200, scripts);
+    return;
+  }
+
+  res.writeHead(405, { Allow: "GET, PUT" });
+  res.end("Method not allowed");
+}
+
+async function loadScriptsFile(scriptsFile) {
+  try {
+    const raw = await fs.readFile(scriptsFile, "utf-8");
+    return normaliseScripts(JSON.parse(raw));
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function normaliseScripts(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((script) => script && typeof script === "object")
+    .filter((script) =>
+      typeof script.id === "string" &&
+      typeof script.title === "string" &&
+      typeof script.text === "string" &&
+      typeof script.createdAt === "string" &&
+      typeof script.updatedAt === "string",
+    )
+    .map((script) => ({
+      id: script.id,
+      title: script.title,
+      text: script.text,
+      createdAt: script.createdAt,
+      updatedAt: script.updatedAt,
+    }));
 }
 
 async function handleAnalyzeRequest(req, res, { repoRoot, incomingDir, url }) {
@@ -200,14 +259,14 @@ function safeFilePart(value) {
     .slice(0, 48) || "take";
 }
 
-async function readRequestBody(req) {
+async function readRequestBody(req, limit = maxBytes) {
   const chunks = [];
   let total = 0;
 
   for await (const chunk of req) {
     total += chunk.length;
-    if (total > maxBytes) {
-      throw new Error("Recording is too large. Try a shorter take.");
+    if (total > limit) {
+      throw new Error("Request body is too large.");
     }
     chunks.push(chunk);
   }
