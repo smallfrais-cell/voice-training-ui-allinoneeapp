@@ -235,7 +235,7 @@ function normaliseAnalyzerError(error) {
 
 function runAnalyzer({ repoRoot, wavPath, label, note }) {
   return new Promise((resolve, reject) => {
-    const args = ["run", "analyze.py", wavPath, "--label", label];
+    const args = ["run", "analyze_safe.py", wavPath, "--label", label];
 
     if (note) {
       args.push("--note", note);
