@@ -30,3 +30,4 @@ voice-garden-starter.zip
 
 # local all-in-one recorder scratch files
 dashboard-react/public/incoming-recordings/*.wav
+scripts.local.json
