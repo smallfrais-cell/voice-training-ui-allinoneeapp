@@ -1,8 +1,8 @@
 import http from "node:http";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
+import { createReadStream, existsSync } from "node:fs";
 import path from "node:path";
-import { createReadStream } from "node:fs";
 
 const maxBytes = 100 * 1024 * 1024;
 
@@ -235,23 +235,22 @@ function normaliseAnalyzerError(error) {
 
 function runAnalyzer({ repoRoot, wavPath, label, note }) {
   return new Promise((resolve, reject) => {
-    const args = ["run", "analyze.py", wavPath, "--label", label];
+    const command = getAnalyzerCommand(repoRoot);
+    const args = command.kind === "bundled"
+      ? [wavPath, "--label", label]
+      : ["run", "analyze.py", wavPath, "--label", label];
 
     if (note) {
       args.push("--note", note);
     }
 
-    console.log(`Analyzing ${wavPath} as “${label}”...`);
+    console.log(`Analyzing ${wavPath} as “${label}” with ${command.kind} analyzer...`);
 
-    const child = spawn("uv", args, {
+    const child = spawn(command.executable, args, {
       cwd: repoRoot,
       shell: false,
       windowsHide: true,
-      env: {
-        ...process.env,
-        PYTHONIOENCODING: "utf-8",
-        PYTHONUTF8: "1",
-      },
+      env: buildAnalyzerEnv(repoRoot),
     });
 
     let stdout = "";
@@ -289,4 +288,28 @@ function runAnalyzer({ repoRoot, wavPath, label, note }) {
       resolve({ stdout, stderr });
     });
   });
+}
+
+function getAnalyzerCommand(repoRoot) {
+  const extension = process.platform === "win32" ? ".exe" : "";
+  const bundledAnalyzer = path.join(repoRoot, "bin", `voice-garden-analyzer${extension}`);
+
+  if (existsSync(bundledAnalyzer)) {
+    return { kind: "bundled", executable: bundledAnalyzer };
+  }
+
+  return { kind: "uv", executable: "uv" };
+}
+
+function buildAnalyzerEnv(repoRoot) {
+  const binDir = path.join(repoRoot, "bin");
+  const pathKey = process.platform === "win32" ? "Path" : "PATH";
+  const originalPath = process.env[pathKey] || process.env.PATH || "";
+
+  return {
+    ...process.env,
+    [pathKey]: existsSync(binDir) ? `${binDir}${path.delimiter}${originalPath}` : originalPath,
+    PYTHONIOENCODING: "utf-8",
+    PYTHONUTF8: "1",
+  };
 }
