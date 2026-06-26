@@ -7,6 +7,50 @@ export interface PracticeScript {
 }
 
 const STORAGE_KEY = "voice-garden.practiceScripts.v1";
+const SEEDED_KEY = "voice-garden.practiceScripts.seededDefaults.v1";
+
+const DEFAULT_DRILL_TEXT = `Warmup: easy hums
+mmm... mmm... mmm...
+mmm-may, mmm-mee, mmm-my
+Keep it gentle. No pushing, no throat squeeze.
+
+Pitch floor drill
+mm-hmm. mm-hmm. I mean, I was thinking...
+I was going to say something.
+I don't know, maybe we can try it again.
+Keep the last word from dropping below your floor.
+
+Forward resonance drill
+mee, may, my, moe, moo
+nee, nay, nye, no, noo
+key, kitty, tiny, city, silly, sunny
+Aim for small, bright, buzzy, forward sound. Not louder. Not strained.
+
+Light weight drill
+hee hee, huh huh, hey hey
+very light, very easy, very small
+I can keep this soft and clear.
+Use less force than your brain thinks is necessary, because brains are dramatic.
+
+Sentence endings drill
+I wanted to go today.
+I thought it was really cute.
+I don't know if that works for me.
+Can we try that one more time?
+Land the final word gently without falling into the basement.
+
+Intonation drill
+Really?
+I mean... maybe?
+That's cute, but I don't know.
+I wanted the pink one, not the black one.
+Let the melody move without yanking your throat around.
+
+Cooldown
+mmm... easy sigh
+soft hum
+sip water
+Stop if anything hurts.`;
 
 export async function loadScripts(): Promise<PracticeScript[]> {
   const cached = loadCachedScripts();
@@ -25,10 +69,26 @@ export async function loadScripts(): Promise<PracticeScript[]> {
       return cached;
     }
 
+    if (saved.length === 0 && cached.length === 0 && !defaultsWereSeeded()) {
+      const defaults = makeDefaultScripts();
+      markDefaultsSeeded();
+      await saveScripts(defaults);
+      return defaults;
+    }
+
     saveCachedScripts(saved);
     return saved;
   } catch {
-    return cached;
+    if (cached.length > 0) return cached;
+
+    if (!defaultsWereSeeded()) {
+      const defaults = makeDefaultScripts();
+      markDefaultsSeeded();
+      saveCachedScripts(defaults);
+      return defaults;
+    }
+
+    return [];
   }
 }
 
@@ -85,6 +145,18 @@ export function updateScript(script: PracticeScript, patch: Partial<Pick<Practic
     text: patch.text?.trim() ?? script.text,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function makeDefaultScripts(): PracticeScript[] {
+  return [makeScript("Transfem starter drills", DEFAULT_DRILL_TEXT)];
+}
+
+function defaultsWereSeeded(): boolean {
+  return window.localStorage.getItem(SEEDED_KEY) === "yes";
+}
+
+function markDefaultsSeeded(): void {
+  window.localStorage.setItem(SEEDED_KEY, "yes");
 }
 
 function makeId(): string {
