@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PracticeAudioInput } from "../lib/practiceAudioInput";
 import { WavRecorder } from "../lib/wavRecorder";
 import { estimatePitch, formatHz, hzToNote, type PitchPoint } from "../lib/pitchTracker";
 import {
@@ -15,6 +16,8 @@ interface PracticeRecorderProps {
 }
 
 type RecorderState = "idle" | "recording" | "analyzing";
+type MonitorState = "off" | "starting" | "on" | "recording" | "error";
+type MonitorModule = "pitch" | "volume" | "waveform";
 
 interface AnalyzeErrorPayload {
   error?: string;
@@ -37,12 +40,21 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   const [error, setError] = useState<string | null>(null);
   const [pitchHz, setPitchHz] = useState<number | null>(null);
   const [pitchPoints, setPitchPoints] = useState<PitchPoint[]>([]);
+  const [volumeDb, setVolumeDb] = useState<number | null>(null);
+  const [waveform, setWaveform] = useState<number[]>([]);
+  const [monitorState, setMonitorState] = useState<MonitorState>("off");
+  const [monitorModule, setMonitorModule] = useState<MonitorModule>(() => {
+    const saved = window.localStorage.getItem("voice-garden.monitorModule");
+    return saved === "volume" || saved === "waveform" ? saved : "pitch";
+  });
   const [pitchFloor, setPitchFloor] = useState(() => {
     const saved = Number(window.localStorage.getItem("voice-garden.pitchFloorHz") || "130");
     return Number.isFinite(saved) ? saved : 130;
   });
 
   const recorderRef = useRef<WavRecorder | null>(null);
+  const liveInputRef = useRef<PracticeAudioInput | null>(null);
+  const monitorWantedRef = useRef(true);
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const pitchHzRef = useRef<number | null>(null);
@@ -65,7 +77,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
         setSelectedScriptId((current) => current ?? loaded[0]?.id ?? null);
         setStatus(
           loaded.length
-            ? "Scripts loaded from your local script file. Luxurious, by computer standards."
+            ? "Scripts loaded from your local script file."
             : "Pick or add a script, then record a take.",
         );
       } catch (err) {
@@ -90,6 +102,10 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   }, [pitchFloor]);
 
   useEffect(() => {
+    window.localStorage.setItem("voice-garden.monitorModule", monitorModule);
+  }, [monitorModule]);
+
+  useEffect(() => {
     if (!selectedScript) {
       setEditingText("");
       return;
@@ -99,17 +115,13 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     setLabel(selectedScript.title || "Practice take");
   }, [selectedScript]);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        window.clearInterval(timerRef.current);
-      }
-      void recorderRef.current?.abort();
-    };
-  }, []);
-
   const handleAudioFrame = useCallback((samples: Float32Array, sampleRate: number) => {
     const now = performance.now();
+    const rms = calculateRms(samples);
+    const db = rms > 0 ? 20 * Math.log10(rms) : null;
+    setVolumeDb(db && Number.isFinite(db) ? Math.max(-80, Math.min(0, db)) : null);
+    setWaveform(sampleWaveform(samples));
+
     if (now - lastPitchUpdateRef.current < 90) return;
     lastPitchUpdateRef.current = now;
 
@@ -127,6 +139,41 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
       return next.slice(-90);
     });
   }, []);
+
+  const startLiveInput = useCallback(async () => {
+    if (liveInputRef.current || recorderRef.current) return;
+
+    try {
+      monitorWantedRef.current = true;
+      setMonitorState("starting");
+      const input = new PracticeAudioInput(handleAudioFrame);
+      await input.start();
+      liveInputRef.current = input;
+      setMonitorState("on");
+      setError(null);
+    } catch (err) {
+      setMonitorState("error");
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [handleAudioFrame]);
+
+  const stopLiveInput = useCallback(async (nextState: MonitorState = "off") => {
+    await liveInputRef.current?.stop();
+    liveInputRef.current = null;
+    setMonitorState(nextState);
+  }, []);
+
+  useEffect(() => {
+    void startLiveInput();
+
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearInterval(timerRef.current);
+      }
+      void recorderRef.current?.abort();
+      void liveInputRef.current?.stop();
+    };
+  }, [startLiveInput]);
 
   async function persistScripts(nextScripts: PracticeScript[], message: string) {
     setScripts(nextScripts);
@@ -187,21 +234,28 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   async function startRecording() {
     try {
       setError(null);
-      resetLivePitch();
+      resetLiveData();
+      monitorWantedRef.current = monitorState === "on" || monitorState === "starting" || monitorWantedRef.current;
+      await stopLiveInput("recording");
+
       const recorder = new WavRecorder(handleAudioFrame);
       await recorder.start();
       recorderRef.current = recorder;
       startedAtRef.current = performance.now();
       setElapsedMs(0);
       setRecorderState("recording");
-      setStatus("Recording. Watch the tiny pitch monitor and keep reading like a responsible mammal.");
+      setMonitorState("recording");
+      setStatus("Recording. The monitor is using the recording input now.");
 
       timerRef.current = window.setInterval(() => {
         setElapsedMs(performance.now() - startedAtRef.current);
       }, 250);
     } catch (err) {
+      setRecorderState("idle");
+      setMonitorState("error");
       setError(err instanceof Error ? err.message : String(err));
       setStatus("Could not start recording.");
+      if (monitorWantedRef.current) void startLiveInput();
     }
   }
 
@@ -216,6 +270,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
 
       const take = await recorderRef.current.stop();
       recorderRef.current = null;
+      if (monitorWantedRef.current) void startLiveInput();
 
       if (take.durationMs < 900) {
         setRecorderState("idle");
@@ -252,6 +307,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
       setStatus("Analyze step failed.");
       await recorderRef.current?.abort();
       recorderRef.current = null;
+      if (monitorWantedRef.current) void startLiveInput();
     }
   }
 
@@ -261,9 +317,22 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     recorderRef.current = null;
     setElapsedMs(0);
     setRecorderState("idle");
-    resetLivePitch();
+    resetLiveData();
     setError(null);
     setStatus("Take scrapped. Start again when ready.");
+    if (monitorWantedRef.current) void startLiveInput();
+  }
+
+  async function toggleLiveInput() {
+    if (monitorState === "on" || monitorState === "starting") {
+      monitorWantedRef.current = false;
+      await stopLiveInput("off");
+      resetLiveData();
+      return;
+    }
+
+    monitorWantedRef.current = true;
+    await startLiveInput();
   }
 
   function stopTimer() {
@@ -273,11 +342,13 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     }
   }
 
-  function resetLivePitch() {
+  function resetLiveData() {
     pitchHzRef.current = null;
     lastPitchUpdateRef.current = 0;
     setPitchHz(null);
     setPitchPoints([]);
+    setVolumeDb(null);
+    setWaveform([]);
   }
 
   const isBusy = recorderState !== "idle";
@@ -293,7 +364,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
             🎙️ Practice recorder
           </h2>
           <p className="practice-subtitle">
-            record a local WAV, save scripts to disk, and watch a tiny live pitch trace
+            default drills, local scripts, recording, and always-available mic modules
           </p>
         </div>
         <div className={`recording-badge ${recorderState}`}>
@@ -363,7 +434,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
               <textarea
                 value={newText}
                 onChange={(event) => setNewText(event.target.value)}
-                placeholder="Paste the passage here. It saves to a real local script file now, because we are adults apparently."
+                placeholder="Paste your next drill or passage here."
                 rows={5}
                 disabled={isBusy || !scriptsLoaded}
               />
@@ -396,13 +467,26 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
             </label>
           </div>
 
+          <LivePracticeMonitor
+            module={monitorModule}
+            monitorState={monitorState}
+            hz={pitchHz}
+            points={pitchPoints}
+            floor={pitchFloor}
+            volumeDb={volumeDb}
+            waveform={waveform}
+            onFloorChange={setPitchFloor}
+            onModuleChange={setMonitorModule}
+            onToggleMonitor={() => void toggleLiveInput()}
+          />
+
           <label className="reading-script-label">
             Reading script
             <textarea
               className="reading-script"
               value={editingText}
               onChange={(event) => setEditingText(event.target.value)}
-              placeholder="Select or add a script. The text stays visible while you record."
+              placeholder="Select or add a script. The text stays visible while you practice or record."
               rows={10}
               disabled={!selectedScript || recorderState === "analyzing"}
             />
@@ -418,14 +502,6 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
               Save script edits
             </button>
           </div>
-
-          <LivePitchMonitor
-            active={recorderState === "recording"}
-            hz={pitchHz}
-            points={pitchPoints}
-            floor={pitchFloor}
-            onFloorChange={setPitchFloor}
-          />
 
           <div className="recorder-controls">
             <div className="timer" aria-live="polite">
@@ -454,15 +530,81 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   );
 }
 
-interface LivePitchMonitorProps {
-  active: boolean;
+interface LivePracticeMonitorProps {
+  module: MonitorModule;
+  monitorState: MonitorState;
   hz: number | null;
   points: PitchPoint[];
   floor: number;
+  volumeDb: number | null;
+  waveform: number[];
   onFloorChange: (value: number) => void;
+  onModuleChange: (value: MonitorModule) => void;
+  onToggleMonitor: () => void;
 }
 
-function LivePitchMonitor({ active, hz, points, floor, onFloorChange }: LivePitchMonitorProps) {
+function LivePracticeMonitor({
+  module,
+  monitorState,
+  hz,
+  points,
+  floor,
+  volumeDb,
+  waveform,
+  onFloorChange,
+  onModuleChange,
+  onToggleMonitor,
+}: LivePracticeMonitorProps) {
+  const isActive = monitorState === "on" || monitorState === "recording";
+  const statusText =
+    monitorState === "recording"
+      ? "recording input"
+      : monitorState === "on"
+        ? "listening"
+        : monitorState === "starting"
+          ? "starting"
+          : monitorState === "error"
+            ? "mic error"
+            : "paused";
+
+  return (
+    <div className={`live-pitch ${isActive ? "active" : ""}`}>
+      <div className="live-pitch-head">
+        <div>
+          <h3>Live mic module</h3>
+          <p>{statusText} · practice with the drill before recording</p>
+        </div>
+        <div className="monitor-controls">
+          <select
+            value={module}
+            onChange={(event) => onModuleChange(event.target.value as MonitorModule)}
+            aria-label="Live monitor module"
+          >
+            <option value="pitch">Pitch floor</option>
+            <option value="volume">Volume level</option>
+            <option value="waveform">Waveform</option>
+          </select>
+          <button type="button" className="soft-btn" onClick={onToggleMonitor} disabled={monitorState === "recording"}>
+            {monitorState === "on" || monitorState === "starting" ? "Pause mic" : "Start mic"}
+          </button>
+        </div>
+      </div>
+
+      {module === "pitch" && (
+        <PitchModule hz={hz} points={points} floor={floor} onFloorChange={onFloorChange} />
+      )}
+      {module === "volume" && <VolumeModule volumeDb={volumeDb} />}
+      {module === "waveform" && <WaveformModule waveform={waveform} />}
+    </div>
+  );
+}
+
+function PitchModule({
+  hz,
+  points,
+  floor,
+  onFloorChange,
+}: Pick<LivePracticeMonitorProps, "hz" | "points" | "floor" | "onFloorChange">) {
   const minHz = 80;
   const maxHz = 280;
   const floorY = pitchToY(floor, minHz, maxHz);
@@ -470,18 +612,11 @@ function LivePitchMonitor({ active, hz, points, floor, onFloorChange }: LivePitc
   const isAboveFloor = hz !== null && hz >= floor;
 
   return (
-    <div className={`live-pitch ${active ? "active" : ""}`}>
-      <div className="live-pitch-head">
-        <div>
-          <h3>Live pitch floor</h3>
-          <p>quick guide only · the full analyzer still judges the recording after</p>
-        </div>
-        <div className={`live-pitch-readout ${isAboveFloor ? "ok" : hz ? "low" : "quiet"}`}>
-          <b>{formatHz(hz)}</b>
-          <span>{hzToNote(hz)}</span>
-        </div>
+    <>
+      <div className={`live-pitch-readout ${isAboveFloor ? "ok" : hz ? "low" : "quiet"}`}>
+        <b>{formatHz(hz)}</b>
+        <span>{hzToNote(hz)}</span>
       </div>
-
       <svg className="live-pitch-graph" viewBox="0 0 100 56" preserveAspectRatio="none" aria-hidden="true">
         <line x1="0" x2="100" y1="14" y2="14" className="pitch-grid" />
         <line x1="0" x2="100" y1="28" y2="28" className="pitch-grid" />
@@ -489,7 +624,6 @@ function LivePitchMonitor({ active, hz, points, floor, onFloorChange }: LivePitc
         <line x1="0" x2="100" y1={floorY} y2={floorY} className="pitch-floor-line" />
         {path && <path d={path} className="pitch-line" />}
       </svg>
-
       <div className="live-pitch-footer">
         <span>80 Hz</span>
         <label>
@@ -506,6 +640,34 @@ function LivePitchMonitor({ active, hz, points, floor, onFloorChange }: LivePitc
         </label>
         <span>280 Hz</span>
       </div>
+    </>
+  );
+}
+
+function VolumeModule({ volumeDb }: Pick<LivePracticeMonitorProps, "volumeDb">) {
+  const pct = volumeDb === null ? 0 : Math.max(0, Math.min(100, ((volumeDb + 60) / 60) * 100));
+
+  return (
+    <div className="module-body">
+      <div className="module-big-value">{formatDb(volumeDb)}</div>
+      <div className="volume-meter" aria-hidden="true">
+        <div style={{ width: `${pct}%` }} />
+      </div>
+      <p className="module-hint">Aim for steady speaking volume. Louder is not automatically better, tragic though that is.</p>
+    </div>
+  );
+}
+
+function WaveformModule({ waveform }: Pick<LivePracticeMonitorProps, "waveform">) {
+  const path = makeWaveformPath(waveform);
+
+  return (
+    <div className="module-body">
+      <svg className="live-pitch-graph waveform-graph" viewBox="0 0 100 56" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" x2="100" y1="28" y2="28" className="pitch-grid" />
+        {path && <path d={path} className="pitch-line waveform-line" />}
+      </svg>
+      <p className="module-hint">Useful for checking that the mic is hearing you and that phrases are not clipping into chaos.</p>
     </div>
   );
 }
@@ -536,6 +698,45 @@ function pitchToY(hz: number, minHz: number, maxHz: number): number {
   const clamped = Math.max(minHz, Math.min(maxHz, hz));
   const pct = (clamped - minHz) / (maxHz - minHz);
   return 52 - pct * 48;
+}
+
+function calculateRms(samples: Float32Array): number {
+  if (!samples.length) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i += 1) {
+    sum += samples[i] * samples[i];
+  }
+  return Math.sqrt(sum / samples.length);
+}
+
+function sampleWaveform(samples: Float32Array): number[] {
+  if (!samples.length) return [];
+  const points = 80;
+  const step = Math.max(1, Math.floor(samples.length / points));
+  const out: number[] = [];
+
+  for (let i = 0; i < samples.length; i += step) {
+    out.push(Math.max(-1, Math.min(1, samples[i])));
+    if (out.length >= points) break;
+  }
+
+  return out;
+}
+
+function makeWaveformPath(values: number[]): string {
+  if (!values.length) return "";
+  return values
+    .map((value, index) => {
+      const x = values.length === 1 ? 0 : (index / (values.length - 1)) * 100;
+      const y = 28 - value * 22;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function formatDb(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "— dB";
+  return `${Math.round(value)} dB`;
 }
 
 function formatAnalyzeError(payload: AnalyzeErrorPayload, status: number): string {
