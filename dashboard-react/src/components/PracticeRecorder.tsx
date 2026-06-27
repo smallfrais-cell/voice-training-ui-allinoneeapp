@@ -51,6 +51,16 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     const saved = Number(window.localStorage.getItem("voice-garden.pitchFloorHz") || "130");
     return Number.isFinite(saved) ? saved : 130;
   });
+  const [pitchCeiling, setPitchCeiling] = useState(() => {
+    const saved = Number(window.localStorage.getItem("voice-garden.pitchCeilingHz") || "320");
+    return Number.isFinite(saved) ? saved : 320;
+  });
+  const [noiseFloorDb, setNoiseFloorDb] = useState<number | null>(() => {
+    const saved = window.localStorage.getItem("voice-garden.noiseFloorDb");
+    if (!saved) return null;
+    const parsed = Number(saved);
+    return Number.isFinite(parsed) ? parsed : null;
+  });
 
   const recorderRef = useRef<WavRecorder | null>(null);
   const liveInputRef = useRef<PracticeAudioInput | null>(null);
@@ -102,6 +112,18 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   }, [pitchFloor]);
 
   useEffect(() => {
+    window.localStorage.setItem("voice-garden.pitchCeilingHz", String(pitchCeiling));
+  }, [pitchCeiling]);
+
+  useEffect(() => {
+    if (noiseFloorDb === null) {
+      window.localStorage.removeItem("voice-garden.noiseFloorDb");
+    } else {
+      window.localStorage.setItem("voice-garden.noiseFloorDb", String(noiseFloorDb));
+    }
+  }, [noiseFloorDb]);
+
+  useEffect(() => {
     window.localStorage.setItem("voice-garden.monitorModule", monitorModule);
   }, [monitorModule]);
 
@@ -125,7 +147,13 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     if (now - lastPitchUpdateRef.current < 90) return;
     lastPitchUpdateRef.current = now;
 
-    const measured = estimatePitch(samples, sampleRate);
+    const measured = estimatePitch(samples, sampleRate, {
+      maxHz: pitchCeiling,
+      minClarity: 0.54,
+      minRms: 0.016,
+      noiseFloorDb,
+      noiseMarginDb: 8,
+    });
     const smoothed = measured
       ? pitchHzRef.current
         ? pitchHzRef.current * 0.68 + measured * 0.32
@@ -138,7 +166,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
       const next = [...current, { t: now, hz: smoothed }].filter((point) => now - point.t <= 8000);
       return next.slice(-90);
     });
-  }, []);
+  }, [noiseFloorDb, pitchCeiling]);
 
   const startLiveInput = useCallback(async () => {
     if (liveInputRef.current || recorderRef.current) return;
@@ -335,6 +363,23 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     await startLiveInput();
   }
 
+  function calibrateNoiseFloor() {
+    if (volumeDb === null || !Number.isFinite(volumeDb)) {
+      setStatus("No room noise level detected yet. Let the mic listen to the fan for a second, then calibrate.");
+      return;
+    }
+
+    const calibrated = Math.round(volumeDb);
+    setNoiseFloorDb(calibrated);
+    resetLiveData();
+    setStatus(`Room noise calibrated at ${calibrated} dB. Voice needs to be clearly above that to count as pitch.`);
+  }
+
+  function clearNoiseFloor() {
+    setNoiseFloorDb(null);
+    setStatus("Room noise gate cleared.");
+  }
+
   function stopTimer() {
     if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
@@ -473,9 +518,14 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
             hz={pitchHz}
             points={pitchPoints}
             floor={pitchFloor}
+            ceiling={pitchCeiling}
             volumeDb={volumeDb}
             waveform={waveform}
+            noiseFloorDb={noiseFloorDb}
             onFloorChange={setPitchFloor}
+            onCeilingChange={setPitchCeiling}
+            onCalibrateNoise={calibrateNoiseFloor}
+            onClearNoise={clearNoiseFloor}
             onModuleChange={setMonitorModule}
             onToggleMonitor={() => void toggleLiveInput()}
           />
@@ -536,9 +586,14 @@ interface LivePracticeMonitorProps {
   hz: number | null;
   points: PitchPoint[];
   floor: number;
+  ceiling: number;
   volumeDb: number | null;
   waveform: number[];
+  noiseFloorDb: number | null;
   onFloorChange: (value: number) => void;
+  onCeilingChange: (value: number) => void;
+  onCalibrateNoise: () => void;
+  onClearNoise: () => void;
   onModuleChange: (value: MonitorModule) => void;
   onToggleMonitor: () => void;
 }
@@ -549,9 +604,14 @@ function LivePracticeMonitor({
   hz,
   points,
   floor,
+  ceiling,
   volumeDb,
   waveform,
+  noiseFloorDb,
   onFloorChange,
+  onCeilingChange,
+  onCalibrateNoise,
+  onClearNoise,
   onModuleChange,
   onToggleMonitor,
 }: LivePracticeMonitorProps) {
@@ -591,7 +651,17 @@ function LivePracticeMonitor({
       </div>
 
       {module === "pitch" && (
-        <PitchModule hz={hz} points={points} floor={floor} onFloorChange={onFloorChange} />
+        <PitchModule
+          hz={hz}
+          points={points}
+          floor={floor}
+          ceiling={ceiling}
+          noiseFloorDb={noiseFloorDb}
+          onFloorChange={onFloorChange}
+          onCeilingChange={onCeilingChange}
+          onCalibrateNoise={onCalibrateNoise}
+          onClearNoise={onClearNoise}
+        />
       )}
       {module === "volume" && <VolumeModule volumeDb={volumeDb} />}
       {module === "waveform" && <WaveformModule waveform={waveform} />}
@@ -603,10 +673,18 @@ function PitchModule({
   hz,
   points,
   floor,
+  ceiling,
+  noiseFloorDb,
   onFloorChange,
-}: Pick<LivePracticeMonitorProps, "hz" | "points" | "floor" | "onFloorChange">) {
+  onCeilingChange,
+  onCalibrateNoise,
+  onClearNoise,
+}: Pick<
+  LivePracticeMonitorProps,
+  "hz" | "points" | "floor" | "ceiling" | "noiseFloorDb" | "onFloorChange" | "onCeilingChange" | "onCalibrateNoise" | "onClearNoise"
+>) {
   const minHz = 80;
-  const maxHz = 280;
+  const maxHz = Math.max(ceiling, 180);
   const floorY = pitchToY(floor, minHz, maxHz);
   const path = makePitchPath(points, minHz, maxHz);
   const isAboveFloor = hz !== null && hz >= floor;
@@ -624,7 +702,7 @@ function PitchModule({
         <line x1="0" x2="100" y1={floorY} y2={floorY} className="pitch-floor-line" />
         {path && <path d={path} className="pitch-line" />}
       </svg>
-      <div className="live-pitch-footer">
+      <div className="live-pitch-footer pitch-settings">
         <span>80 Hz</span>
         <label>
           Floor
@@ -638,7 +716,27 @@ function PitchModule({
           />
           Hz
         </label>
-        <span>280 Hz</span>
+        <label>
+          Ceiling
+          <input
+            type="number"
+            min={180}
+            max={450}
+            step={5}
+            value={ceiling}
+            onChange={(event) => onCeilingChange(Number(event.target.value) || 320)}
+          />
+          Hz
+        </label>
+      </div>
+      <div className="noise-tools">
+        <span>{noiseFloorDb === null ? "No room noise gate" : `Room noise: ${noiseFloorDb} dB`}</span>
+        <button type="button" className="soft-btn" onClick={onCalibrateNoise}>
+          Calibrate fan noise
+        </button>
+        <button type="button" className="soft-btn" onClick={onClearNoise} disabled={noiseFloorDb === null}>
+          Clear
+        </button>
       </div>
     </>
   );
