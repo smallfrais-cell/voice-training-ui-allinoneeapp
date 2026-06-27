@@ -375,7 +375,6 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
 
     const calibrated = Math.round(volumeDb);
     setNoiseFloorDb(calibrated);
-    resetLiveData();
     setStatus(`Room noise calibrated at ${calibrated} dB. Voice needs to be clearly above that to count as pitch.`);
   }
 
