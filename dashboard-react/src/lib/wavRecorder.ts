@@ -21,9 +21,11 @@ export class WavRecorder {
   private startedAt = 0;
   private stopped = false;
   private onAudioFrame?: AudioFrameHandler;
+  private getInputGain: () => number;
 
-  constructor(onAudioFrame?: AudioFrameHandler) {
+  constructor(onAudioFrame?: AudioFrameHandler, getInputGain: () => number = () => 1) {
     this.onAudioFrame = onAudioFrame;
+    this.getInputGain = getInputGain;
   }
 
   async start(): Promise<void> {
@@ -55,7 +57,7 @@ export class WavRecorder {
       if (this.stopped || !this.context) return;
 
       const input = event.inputBuffer.getChannelData(0);
-      const frame = new Float32Array(input);
+      const frame = applyGain(input, this.getInputGain());
       this.chunks.push(frame);
       this.onAudioFrame?.(frame, this.context.sampleRate);
 
@@ -108,6 +110,17 @@ export class WavRecorder {
 
     this.context = null;
   }
+}
+
+function applyGain(input: Float32Array, gain: number): Float32Array {
+  const safeGain = Number.isFinite(gain) ? Math.max(0, Math.min(4, gain)) : 1;
+  const output = new Float32Array(input.length);
+
+  for (let i = 0; i < input.length; i += 1) {
+    output[i] = Math.max(-1, Math.min(1, input[i] * safeGain));
+  }
+
+  return output;
 }
 
 function mergeChunks(chunks: Float32Array[]): Float32Array {
