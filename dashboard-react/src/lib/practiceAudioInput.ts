@@ -13,7 +13,10 @@ export class PracticeAudioInput {
   private processor: ScriptProcessorNode | null = null;
   private stopped = true;
 
-  constructor(private readonly onAudioFrame: AudioFrameHandler) {}
+  constructor(
+    private readonly onAudioFrame: AudioFrameHandler,
+    private readonly getInputGain: () => number = () => 1,
+  ) {}
 
   async start(): Promise<void> {
     if (this.context) return;
@@ -40,7 +43,7 @@ export class PracticeAudioInput {
       if (this.stopped || !this.context) return;
 
       const input = event.inputBuffer.getChannelData(0);
-      this.onAudioFrame(new Float32Array(input), this.context.sampleRate);
+      this.onAudioFrame(applyGain(input, this.getInputGain()), this.context.sampleRate);
       event.outputBuffer.getChannelData(0).fill(0);
     };
 
@@ -65,4 +68,15 @@ export class PracticeAudioInput {
 
     this.context = null;
   }
+}
+
+function applyGain(input: Float32Array, gain: number): Float32Array {
+  const safeGain = Number.isFinite(gain) ? Math.max(0, Math.min(4, gain)) : 1;
+  const output = new Float32Array(input.length);
+
+  for (let i = 0; i < input.length; i += 1) {
+    output[i] = Math.max(-1, Math.min(1, input[i] * safeGain));
+  }
+
+  return output;
 }
