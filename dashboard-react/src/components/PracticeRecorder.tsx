@@ -55,6 +55,10 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     const saved = Number(window.localStorage.getItem("voice-garden.pitchCeilingHz") || "320");
     return Number.isFinite(saved) ? clamp(saved, 180, 450) : 320;
   });
+  const [inputGain, setInputGain] = useState(() => {
+    const saved = Number(window.localStorage.getItem("voice-garden.inputGain") || "1");
+    return Number.isFinite(saved) ? clamp(saved, 0.25, 3) : 1;
+  });
   const [noiseFloorDb, setNoiseFloorDb] = useState<number | null>(() => {
     const saved = window.localStorage.getItem("voice-garden.noiseFloorDb");
     if (!saved) return null;
@@ -69,6 +73,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   const startedAtRef = useRef(0);
   const pitchHzRef = useRef<number | null>(null);
   const pitchCeilingRef = useRef(pitchCeiling);
+  const inputGainRef = useRef(inputGain);
   const noiseFloorDbRef = useRef(noiseFloorDb);
   const lastPitchUpdateRef = useRef(0);
 
@@ -117,6 +122,11 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     pitchCeilingRef.current = pitchCeiling;
     window.localStorage.setItem("voice-garden.pitchCeilingHz", String(pitchCeiling));
   }, [pitchCeiling]);
+
+  useEffect(() => {
+    inputGainRef.current = inputGain;
+    window.localStorage.setItem("voice-garden.inputGain", String(inputGain));
+  }, [inputGain]);
 
   useEffect(() => {
     noiseFloorDbRef.current = noiseFloorDb;
@@ -178,7 +188,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     try {
       monitorWantedRef.current = true;
       setMonitorState("starting");
-      const input = new PracticeAudioInput(handleAudioFrame);
+      const input = new PracticeAudioInput(handleAudioFrame, () => inputGainRef.current);
       await input.start();
       liveInputRef.current = input;
       setMonitorState("on");
@@ -270,7 +280,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
       monitorWantedRef.current = monitorState === "on" || monitorState === "starting" || monitorWantedRef.current;
       await stopLiveInput("recording");
 
-      const recorder = new WavRecorder(handleAudioFrame);
+      const recorder = new WavRecorder(handleAudioFrame, () => inputGainRef.current);
       await recorder.start();
       recorderRef.current = recorder;
       startedAtRef.current = performance.now();
@@ -522,11 +532,13 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
             points={pitchPoints}
             floor={pitchFloor}
             ceiling={pitchCeiling}
+            inputGain={inputGain}
             volumeDb={volumeDb}
             waveform={waveform}
             noiseFloorDb={noiseFloorDb}
             onFloorChange={setPitchFloor}
             onCeilingChange={setPitchCeiling}
+            onInputGainChange={setInputGain}
             onCalibrateNoise={calibrateNoiseFloor}
             onClearNoise={clearNoiseFloor}
             onModuleChange={setMonitorModule}
@@ -590,11 +602,13 @@ interface LivePracticeMonitorProps {
   points: PitchPoint[];
   floor: number;
   ceiling: number;
+  inputGain: number;
   volumeDb: number | null;
   waveform: number[];
   noiseFloorDb: number | null;
   onFloorChange: (value: number) => void;
   onCeilingChange: (value: number) => void;
+  onInputGainChange: (value: number) => void;
   onCalibrateNoise: () => void;
   onClearNoise: () => void;
   onModuleChange: (value: MonitorModule) => void;
@@ -608,11 +622,13 @@ function LivePracticeMonitor({
   points,
   floor,
   ceiling,
+  inputGain,
   volumeDb,
   waveform,
   noiseFloorDb,
   onFloorChange,
   onCeilingChange,
+  onInputGainChange,
   onCalibrateNoise,
   onClearNoise,
   onModuleChange,
@@ -651,6 +667,25 @@ function LivePracticeMonitor({
             {monitorState === "on" || monitorState === "starting" ? "Pause mic" : "Start mic"}
           </button>
         </div>
+      </div>
+
+      <div className="gain-control">
+        <label>
+          <span>
+            Mic gain <b>{inputGain.toFixed(2)}x</b>
+          </span>
+          <input
+            type="range"
+            min={0.25}
+            max={3}
+            step={0.05}
+            value={inputGain}
+            onChange={(event) => onInputGainChange(clamp(Number(event.target.value) || 1, 0.25, 3))}
+          />
+        </label>
+        <button type="button" className="soft-btn" onClick={() => onInputGainChange(1)} disabled={Math.abs(inputGain - 1) < 0.01}>
+          Reset gain
+        </button>
       </div>
 
       {module === "pitch" && (
