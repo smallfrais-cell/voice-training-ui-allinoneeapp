@@ -53,7 +53,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   });
   const [pitchCeiling, setPitchCeiling] = useState(() => {
     const saved = Number(window.localStorage.getItem("voice-garden.pitchCeilingHz") || "320");
-    return Number.isFinite(saved) ? saved : 320;
+    return Number.isFinite(saved) ? clamp(saved, 180, 450) : 320;
   });
   const [noiseFloorDb, setNoiseFloorDb] = useState<number | null>(() => {
     const saved = window.localStorage.getItem("voice-garden.noiseFloorDb");
@@ -727,7 +727,7 @@ function PitchModule({
             max={450}
             step={5}
             value={ceiling}
-            onChange={(event) => onCeilingChange(Number(event.target.value) || 320)}
+            onChange={(event) => onCeilingChange(clamp(Number(event.target.value) || 320, 180, 450))}
           />
           Hz
         </label>
@@ -838,6 +838,10 @@ function makeWaveformPath(values: number[]): string {
 function formatDb(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return "— dB";
   return `${Math.round(value)} dB`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function formatAnalyzeError(payload: AnalyzeErrorPayload, status: number): string {
