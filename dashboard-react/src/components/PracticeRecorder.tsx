@@ -145,7 +145,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     const now = performance.now();
     const rms = calculateRms(samples);
     const db = rms > 0 ? 20 * Math.log10(rms) : null;
-    setVolumeDb(db && Number.isFinite(db) ? Math.max(-80, Math.min(0, db)) : null);
+    setVolumeDb(db !== null && Number.isFinite(db) ? Math.max(-80, Math.min(0, db)) : null);
     setWaveform(sampleWaveform(samples));
 
     if (now - lastPitchUpdateRef.current < 90) return;
