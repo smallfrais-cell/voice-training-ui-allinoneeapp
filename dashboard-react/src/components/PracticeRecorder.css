@@ -247,6 +247,47 @@
   white-space: nowrap;
 }
 
+.gain-control {
+  align-items: center;
+  background: rgba(248, 241, 255, 0.72);
+  border: 1.5px solid var(--lav-soft);
+  border-radius: 14px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  margin: 0 0 10px;
+  padding: 9px 10px;
+}
+
+.gain-control label {
+  color: var(--ink-soft);
+  display: grid;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.gain-control label span {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.gain-control b {
+  color: #7a5a92;
+  font-size: 13px;
+}
+
+.gain-control input[type="range"] {
+  accent-color: #b06a96;
+  padding: 0;
+}
+
+.gain-control .soft-btn {
+  font-size: 12px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
 .live-pitch-readout {
   align-items: flex-end;
   background: var(--lav-bg);
@@ -506,13 +547,15 @@
   .practice-head,
   .recorder-controls,
   .live-pitch-head,
-  .monitor-controls {
+  .monitor-controls,
+  .gain-control {
     align-items: stretch;
     flex-direction: column;
   }
 
   .practice-grid,
-  .take-fields {
+  .take-fields,
+  .gain-control {
     grid-template-columns: 1fr;
   }
 
