@@ -56,7 +56,6 @@ export function estimatePitch(
 
   let bestLag = -1;
   let bestCorr = 0;
-  let secondBestCorr = 0;
 
   for (let lag = minLag; lag <= maxLag; lag += 1) {
     let corr = 0;
@@ -76,19 +75,12 @@ export function estimatePitch(
 
     const normalised = corr / denom;
     if (normalised > bestCorr) {
-      secondBestCorr = bestCorr;
       bestCorr = normalised;
       bestLag = lag;
-    } else if (normalised > secondBestCorr) {
-      secondBestCorr = normalised;
     }
   }
 
   if (bestLag <= 0 || bestCorr < minClarity) return null;
-
-  // Narrow fan tones can look deceptively periodic. Require the best lag to be
-  // meaningfully better than the next-best candidate, otherwise treat it as noise.
-  if (bestCorr - secondBestCorr < 0.015 && bestCorr < 0.72) return null;
 
   const hz = sampleRate / bestLag;
   if (!Number.isFinite(hz) || hz < minHz || hz > maxHz) return null;
