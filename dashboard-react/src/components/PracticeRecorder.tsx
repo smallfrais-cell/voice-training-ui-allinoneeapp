@@ -68,6 +68,8 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
   const pitchHzRef = useRef<number | null>(null);
+  const pitchCeilingRef = useRef(pitchCeiling);
+  const noiseFloorDbRef = useRef(noiseFloorDb);
   const lastPitchUpdateRef = useRef(0);
 
   const selectedScript = useMemo(
@@ -112,10 +114,12 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
   }, [pitchFloor]);
 
   useEffect(() => {
+    pitchCeilingRef.current = pitchCeiling;
     window.localStorage.setItem("voice-garden.pitchCeilingHz", String(pitchCeiling));
   }, [pitchCeiling]);
 
   useEffect(() => {
+    noiseFloorDbRef.current = noiseFloorDb;
     if (noiseFloorDb === null) {
       window.localStorage.removeItem("voice-garden.noiseFloorDb");
     } else {
@@ -148,10 +152,10 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
     lastPitchUpdateRef.current = now;
 
     const measured = estimatePitch(samples, sampleRate, {
-      maxHz: pitchCeiling,
+      maxHz: pitchCeilingRef.current,
       minClarity: 0.54,
       minRms: 0.016,
-      noiseFloorDb,
+      noiseFloorDb: noiseFloorDbRef.current,
       noiseMarginDb: 8,
     });
     const smoothed = measured
@@ -166,7 +170,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
       const next = [...current, { t: now, hz: smoothed }].filter((point) => now - point.t <= 8000);
       return next.slice(-90);
     });
-  }, [noiseFloorDb, pitchCeiling]);
+  }, []);
 
   const startLiveInput = useCallback(async () => {
     if (liveInputRef.current || recorderRef.current) return;
