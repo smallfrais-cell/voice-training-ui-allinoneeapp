@@ -153,7 +153,7 @@ export function PracticeRecorder({ onAnalyzed }: PracticeRecorderProps) {
 
     const measured = estimatePitch(samples, sampleRate, {
       maxHz: pitchCeilingRef.current,
-      minClarity: 0.54,
+      minClarity: 0.58,
       minRms: 0.016,
       noiseFloorDb: noiseFloorDbRef.current,
       noiseMarginDb: 8,
