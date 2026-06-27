@@ -337,6 +337,31 @@
   width: 66px;
 }
 
+.pitch-settings {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.noise-tools {
+  align-items: center;
+  color: var(--ink-soft);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11px;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.noise-tools span {
+  margin-right: auto;
+}
+
+.noise-tools .soft-btn {
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
 .module-body {
   display: grid;
   gap: 8px;
