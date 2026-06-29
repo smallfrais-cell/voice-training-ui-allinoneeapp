@@ -1,0 +1,19 @@
+{
+  "name": "Voice Garden Pocket",
+  "short_name": "Voice Pocket",
+  "description": "Phone-first voice training practice companion with live pitch, gain, fan calibration, scripts, and drills.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#130a1e",
+  "theme_color": "#160b22",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

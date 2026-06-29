@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Voice Garden Pocket icon">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="64" x2="432" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff9ac8"/>
+      <stop offset="0.55" stop-color="#a98bed"/>
+      <stop offset="1" stop-color="#4f2f73"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="150" y1="102" x2="370" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#130a1e"/>
+  <circle cx="256" cy="256" r="184" fill="url(#bg)"/>
+  <path d="M160 286c28-70 68-104 112-100 46 4 74 48 106 38 20-6 30-26 36-42" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+  <path d="M154 350c54-36 102-43 144-22 28 14 51 37 90 12" fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" opacity="0.78"/>
+  <path d="M178 164c24-20 50-31 78-31 30 0 57 12 80 36" fill="none" stroke="url(#shine)" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="202" cy="230" r="18" fill="#fff" opacity="0.92"/>
+  <circle cx="318" cy="292" r="14" fill="#fff" opacity="0.85"/>
+</svg>

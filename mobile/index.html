@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#160b22" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Voice Pocket" />
+    <title>Voice Garden Pocket</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Android practice mode</p>
+          <h1>Voice Garden Pocket</h1>
+          <p class="hero-copy">
+            Live pitch, gain, fan calibration, scripts, and drills. No Windows. No Python.
+            Just the mic, your voice, and the tiny miracle of browser APIs not exploding yet.
+          </p>
+        </div>
+        <button id="install-button" class="pill ghost hidden" type="button">Install</button>
+      </header>
+
+      <section class="card monitor-card" aria-labelledby="monitor-title">
+        <div class="card-head">
+          <div>
+            <h2 id="monitor-title">Live mic</h2>
+            <p id="mic-status">paused</p>
+          </div>
+          <button id="mic-toggle" class="pill primary" type="button">Start mic</button>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Monitor module">
+          <button class="tab active" data-module="pitch" type="button">Pitch</button>
+          <button class="tab" data-module="volume" type="button">Volume</button>
+          <button class="tab" data-module="waveform" type="button">Waveform</button>
+        </div>
+
+        <div class="control-block gain-control">
+          <label for="gain-slider">
+            <span>Mic gain <b id="gain-value">1.00x</b></span>
+            <input id="gain-slider" type="range" min="0.25" max="3" step="0.05" value="1" />
+          </label>
+          <button id="gain-reset" class="pill ghost" type="button">Reset</button>
+        </div>
+
+        <div id="pitch-module" class="module active">
+          <div class="readout" id="pitch-readout">
+            <b id="pitch-hz">—</b>
+            <span id="pitch-note">—</span>
+          </div>
+          <svg id="pitch-graph" class="graph" viewBox="0 0 100 58" preserveAspectRatio="none" aria-hidden="true">
+            <line class="grid" x1="0" x2="100" y1="14" y2="14"></line>
+            <line class="grid" x1="0" x2="100" y1="29" y2="29"></line>
+            <line class="grid" x1="0" x2="100" y1="44" y2="44"></line>
+            <line id="floor-line" class="floor-line" x1="0" x2="100" y1="38" y2="38"></line>
+            <path id="pitch-path" class="pitch-path"></path>
+          </svg>
+
+          <div class="number-grid">
+            <label for="floor-input">
+              Floor
+              <input id="floor-input" type="number" min="80" max="240" step="1" />
+            </label>
+            <label for="ceiling-input">
+              Ceiling
+              <input id="ceiling-input" type="number" min="180" max="450" step="5" />
+            </label>
+          </div>
+
+          <div class="noise-row">
+            <span id="noise-label">No room noise gate</span>
+            <button id="calibrate-noise" class="pill ghost" type="button">Calibrate fan</button>
+            <button id="clear-noise" class="pill ghost" type="button">Clear</button>
+          </div>
+        </div>
+
+        <div id="volume-module" class="module">
+          <div class="big-value" id="volume-value">— dB</div>
+          <div class="meter" aria-hidden="true"><div id="volume-bar"></div></div>
+          <p class="hint">Aim for steady speaking volume. Louder is not automatically girlier, tragically.</p>
+        </div>
+
+        <div id="waveform-module" class="module">
+          <svg id="waveform-graph" class="graph" viewBox="0 0 100 58" preserveAspectRatio="none" aria-hidden="true">
+            <line class="grid" x1="0" x2="100" y1="29" y2="29"></line>
+            <path id="waveform-path" class="waveform-path"></path>
+          </svg>
+          <p class="hint">Useful for checking that the mic is hearing you and not clipping itself into soup.</p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="script-title">
+        <div class="card-head compact">
+          <div>
+            <h2 id="script-title">Scripts & drills</h2>
+            <p id="script-count">saved locally</p>
+          </div>
+          <button id="wake-toggle" class="pill ghost" type="button">Keep awake</button>
+        </div>
+
+        <label class="field" for="script-select">
+          Current script
+          <select id="script-select"></select>
+        </label>
+
+        <label class="field" for="script-text">
+          Practice text
+          <textarea id="script-text" rows="12" spellcheck="false"></textarea>
+        </label>
+
+        <div class="button-row">
+          <button id="save-script" class="pill primary" type="button">Save edits</button>
+          <button id="delete-script" class="pill danger" type="button">Delete</button>
+        </div>
+
+        <details class="add-script-box">
+          <summary>Add another script</summary>
+          <label class="field" for="new-script-title">
+            Title
+            <input id="new-script-title" type="text" placeholder="Soft onset drill" />
+          </label>
+          <label class="field" for="new-script-text">
+            Text
+            <textarea id="new-script-text" rows="6" placeholder="Paste your drill here"></textarea>
+          </label>
+          <button id="add-script" class="pill primary full" type="button">Save new script</button>
+        </details>
+      </section>
+
+      <section class="card tiny-card">
+        <h2>How to use this on Android</h2>
+        <ol>
+          <li>Open this page in Chrome.</li>
+          <li>Tap <b>Start mic</b> and allow microphone access.</li>
+          <li>With the fan on and you silent, tap <b>Calibrate fan</b>.</li>
+          <li>Use <b>Add to Home screen</b> or the Install button if Chrome offers it.</li>
+        </ol>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
