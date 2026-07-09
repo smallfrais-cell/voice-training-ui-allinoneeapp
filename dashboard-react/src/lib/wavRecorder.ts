@@ -4,6 +4,8 @@ export interface WavRecording {
   sampleRate: number;
 }
 
+export type AudioFrameHandler = (samples: Float32Array, sampleRate: number) => void;
+
 declare global {
   interface Window {
     webkitAudioContext?: typeof AudioContext;
@@ -18,6 +20,13 @@ export class WavRecorder {
   private chunks: Float32Array[] = [];
   private startedAt = 0;
   private stopped = false;
+  private onAudioFrame?: AudioFrameHandler;
+  private getInputGain: () => number;
+
+  constructor(onAudioFrame?: AudioFrameHandler, getInputGain: () => number = () => 1) {
+    this.onAudioFrame = onAudioFrame;
+    this.getInputGain = getInputGain;
+  }
 
   async start(): Promise<void> {
     if (this.context) {
@@ -31,8 +40,8 @@ export class WavRecorder {
 
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
+        echoCancellation: true,
+        noiseSuppression: true,
         autoGainControl: false,
       },
     });
@@ -45,10 +54,12 @@ export class WavRecorder {
     this.stopped = false;
 
     this.processor.onaudioprocess = (event) => {
-      if (this.stopped) return;
+      if (this.stopped || !this.context) return;
 
       const input = event.inputBuffer.getChannelData(0);
-      this.chunks.push(new Float32Array(input));
+      const frame = applyGain(input, this.getInputGain());
+      this.chunks.push(frame);
+      this.onAudioFrame?.(frame, this.context.sampleRate);
 
       const output = event.outputBuffer.getChannelData(0);
       output.fill(0);
@@ -99,6 +110,17 @@ export class WavRecorder {
 
     this.context = null;
   }
+}
+
+function applyGain(input: Float32Array, gain: number): Float32Array {
+  const safeGain = Number.isFinite(gain) ? Math.max(0, Math.min(4, gain)) : 1;
+  const output = new Float32Array(input.length);
+
+  for (let i = 0; i < input.length; i += 1) {
+    output[i] = Math.max(-1, Math.min(1, input[i] * safeGain));
+  }
+
+  return output;
 }
 
 function mergeChunks(chunks: Float32Array[]): Float32Array {

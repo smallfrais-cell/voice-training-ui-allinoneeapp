@@ -160,7 +160,8 @@
 }
 
 .practice-card input,
-.practice-card textarea {
+.practice-card textarea,
+.practice-card select {
   background: #fffafd;
   border: 1.5px solid var(--lav-soft);
   border-radius: 13px;
@@ -172,20 +173,22 @@
 }
 
 .practice-card input:focus,
-.practice-card textarea:focus {
+.practice-card textarea:focus,
+.practice-card select:focus {
   border-color: var(--pink);
   box-shadow: 0 0 0 3px rgba(255, 182, 213, 0.28);
   outline: none;
 }
 
 .practice-card input:disabled,
-.practice-card textarea:disabled {
+.practice-card textarea:disabled,
+.practice-card select:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
 .reading-script {
-  min-height: 250px;
+  min-height: 210px;
   resize: vertical;
 }
 
@@ -193,6 +196,253 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 10px;
+}
+
+.live-pitch {
+  background: rgba(255, 250, 253, 0.78);
+  border: 1.5px solid var(--lav-soft);
+  border-radius: 18px;
+  margin: 0 0 12px;
+  padding: 12px;
+}
+
+.live-pitch.active {
+  border-color: var(--pink);
+  box-shadow: 0 8px 18px rgba(176, 106, 150, 0.13);
+}
+
+.live-pitch-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.live-pitch-head h3 {
+  color: #8a6aa8;
+  font-size: 14px;
+  margin: 0 0 2px;
+}
+
+.live-pitch-head p {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin: 0;
+}
+
+.monitor-controls {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.monitor-controls select {
+  min-width: 142px;
+  padding: 8px 10px;
+}
+
+.monitor-controls .soft-btn {
+  white-space: nowrap;
+}
+
+.gain-control {
+  align-items: center;
+  background: rgba(248, 241, 255, 0.72);
+  border: 1.5px solid var(--lav-soft);
+  border-radius: 14px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  margin: 0 0 10px;
+  padding: 9px 10px;
+}
+
+.gain-control label {
+  color: var(--ink-soft);
+  display: grid;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.gain-control label span {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.gain-control b {
+  color: #7a5a92;
+  font-size: 13px;
+}
+
+.gain-control input[type="range"] {
+  accent-color: #b06a96;
+  padding: 0;
+}
+
+.gain-control .soft-btn {
+  font-size: 12px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.live-pitch-readout {
+  align-items: flex-end;
+  background: var(--lav-bg);
+  border-radius: 14px;
+  color: #7a5a92;
+  display: grid;
+  margin: 0 0 8px auto;
+  min-width: 84px;
+  padding: 7px 10px;
+  text-align: right;
+  width: max-content;
+}
+
+.live-pitch-readout b {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.live-pitch-readout span {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.78;
+}
+
+.live-pitch-readout.ok {
+  background: #e7f8ef;
+  color: #2f7a58;
+}
+
+.live-pitch-readout.low {
+  background: #ffe1e8;
+  color: #b04472;
+}
+
+.live-pitch-readout.quiet {
+  color: var(--ink-soft);
+}
+
+.live-pitch-graph {
+  background: linear-gradient(180deg, #fffafd, #f8f1ff);
+  border-radius: 14px;
+  display: block;
+  height: 74px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.pitch-grid {
+  stroke: rgba(138, 106, 168, 0.16);
+  stroke-width: 0.6;
+}
+
+.pitch-floor-line {
+  stroke: rgba(176, 68, 114, 0.7);
+  stroke-dasharray: 3 2;
+  stroke-width: 1.2;
+}
+
+.pitch-line {
+  fill: none;
+  stroke: #9b7ad0;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.live-pitch-footer {
+  align-items: center;
+  color: var(--ink-soft);
+  display: flex;
+  font-size: 11px;
+  justify-content: space-between;
+  margin-top: 7px;
+}
+
+.live-pitch-footer label {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.live-pitch-footer input {
+  border-radius: 10px;
+  font-size: 12px;
+  padding: 5px 7px;
+  width: 66px;
+}
+
+.pitch-settings {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.noise-tools {
+  align-items: center;
+  color: var(--ink-soft);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 11px;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.noise-tools span {
+  margin-right: auto;
+}
+
+.noise-tools .soft-btn {
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.module-body {
+  display: grid;
+  gap: 8px;
+}
+
+.module-big-value {
+  color: #7a5a92;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: right;
+}
+
+.module-hint {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin: 0;
+}
+
+.volume-meter {
+  background: var(--lav-bg);
+  border-radius: 999px;
+  height: 18px;
+  overflow: hidden;
+}
+
+.volume-meter div {
+  background: linear-gradient(90deg, var(--lav), var(--pink));
+  border-radius: inherit;
+  height: 100%;
+  min-width: 2px;
+  transition: width 0.08s linear;
+}
+
+.waveform-graph {
+  height: 74px;
+}
+
+.waveform-line {
+  stroke: #d97bb3;
 }
 
 .recorder-controls {
@@ -295,13 +545,17 @@
 
 @media (max-width: 820px) {
   .practice-head,
-  .recorder-controls {
+  .recorder-controls,
+  .live-pitch-head,
+  .monitor-controls,
+  .gain-control {
     align-items: stretch;
     flex-direction: column;
   }
 
   .practice-grid,
-  .take-fields {
+  .take-fields,
+  .gain-control {
     grid-template-columns: 1fr;
   }
 
